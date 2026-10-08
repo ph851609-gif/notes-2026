@@ -7,6 +7,9 @@
 <meta name="apple-mobile-web-app-title" content="計算機">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
 <title>計算機</title>
 <style>
   :root { --bg:#000; --key:#2b2b2d; --num:#3f3f42; --op:#e8891d; --txt:#f2f2f2; }
@@ -30,8 +33,26 @@
   #deg.on { color:var(--op); }
   #vhead { display:flex; justify-content:space-between; align-items:center; padding:14px 6px; }
   #vhead h1 { font-size:22px; margin:0; font-weight:600; }
-  #lock { height:40px; padding:0 18px; background:var(--op); font-size:16px; }
-  #vbody { flex:1; display:flex; align-items:center; justify-content:center; color:#8a8a8f; font-size:17px; }
+  #lock, #add { height:40px; padding:0 18px; background:var(--op); font-size:16px; margin-left:8px; }
+  #vbody { flex:1; overflow-y:auto; padding:4px; color:#8a8a8f; font-size:17px; }
+  #grid { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; }
+  .cell { aspect-ratio:1; background:#1c1c1e center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:#777; font-size:28px; position:relative; }
+  .cell.vid::after { content:"▶"; position:absolute; right:6px; bottom:4px; font-size:14px; color:#fff; text-shadow:0 0 4px #000; }
+  #empty { text-align:center; padding-top:30vh; }
+  #status { text-align:center; color:var(--op); min-height:20px; padding:4px; font-size:14px; }
+  #viewer { display:none; position:fixed; inset:0; background:#000; z-index:10; flex-direction:column; padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px); }
+  #vbar { display:flex; justify-content:space-between; padding:10px; }
+  #vbar button { height:40px; padding:0 18px; font-size:16px; margin-left:8px; }
+  #vdel { background:#a33; }
+  #vmedia { flex:1; display:flex; align-items:center; justify-content:center; min-height:0; }
+  #vmedia img, #vmedia video { max-width:100%; max-height:100%; }
+  #setup { display:none; height:100%; flex-direction:column; justify-content:center; gap:14px; max-width:420px; margin:0 auto; padding:24px; user-select:text; }
+  #setup h1 { font-size:24px; margin:0; }
+  #setup p { margin:0; color:#9a9a9f; line-height:1.5; font-size:15px; }
+  #setup input { height:48px; border-radius:12px; border:1px solid #444; background:#1c1c1e; color:var(--txt); font-size:20px; padding:0 14px; letter-spacing:4px; }
+  #setupBtn { background:var(--op); height:50px; }
+  #setupErr { color:#ff6b6b; min-height:20px; }
+  #reset { height:36px; padding:0 14px; font-size:14px; background:transparent; color:#8a8a8f; border:1px solid #444; margin-bottom:10px; align-self:center; }
   @media (prefers-reduced-motion:no-preference) { button { transition:filter .08s; } }
 </style>
 </head>
@@ -41,13 +62,51 @@
   <div id="keys"></div>
 </div>
 <div id="vault">
-  <div id="vhead"><h1>相簿</h1><button id="lock">鎖定</button></div>
-  <div id="vbody">還沒有照片或影片</div>
+  <div id="vhead"><h1>相簿</h1><div><button id="add">匯入</button><button id="lock">鎖定</button></div></div>
+  <div id="status"></div>
+  <div id="vbody"><div id="grid"></div><div id="empty">還沒有照片或影片</div></div>
+  <button id="reset">清除全部資料並重設</button>
+  <input id="file" type="file" multiple accept="image/*,video/*" hidden>
+</div>
+<div id="viewer">
+  <div id="vbar"><button id="vclose">關閉</button><span><button id="vexp">匯出</button><button id="vdel">刪除</button></span></div>
+  <div id="vmedia"></div>
+</div>
+<div id="setup">
+  <h1>首次設定</h1>
+  <p>請設定相簿密碼：僅限數字，至少 5 碼，建議 8 碼以上。忘記密碼將無法找回任何照片。</p>
+  <input id="pw1" type="password" inputmode="numeric" autocomplete="off" placeholder="輸入密碼">
+  <input id="pw2" type="password" inputmode="numeric" autocomplete="off" placeholder="再輸入一次">
+  <div id="setupErr"></div>
+  <button id="setupBtn">完成設定</button>
 </div>
 
 <script>
-// ===== 設定：測試用密碼（之後會改成可自訂） =====
-const SECRET = "246810";
+// ===== 加密：密碼 → PBKDF2 → AES-256-GCM 金鑰 =====
+const enc = new TextEncoder();
+const b64 = a => btoa(String.fromCharCode(...new Uint8Array(a)));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+let vaultKey = null; // 只存在記憶體，鎖定時清除
+async function deriveKey(pw, salt) {
+  const base = await crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: 600000, hash: "SHA-256" },
+    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+function getCfg() { try { return JSON.parse(localStorage.getItem("cfg")); } catch (e) { return null; } }
+async function setupPassword(pw) {
+  const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(pw, salt);
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode("ok"));
+  localStorage.setItem("cfg", JSON.stringify({ salt: b64(salt), iv: b64(iv), ct: b64(ct) }));
+}
+async function tryUnlock(pw) {
+  const c = getCfg(); if (!c) return null;
+  try {
+    const key = await deriveKey(pw, unb64(c.salt));
+    await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(c.iv) }, key, unb64(c.ct));
+    return key;
+  } catch (e) { return null; }
+}
 
 // ===== 計算引擎（遞迴下降，不使用 eval） =====
 let deg = true, ans = 0;
@@ -147,25 +206,176 @@ function press(k) {
   expr += k; render();
   try { const v = evaluate(expr); resEl.textContent = fmt(v); } catch (e) { /* 輸入中先不顯示錯誤 */ }
 }
-function equals() {
-  if (expr === SECRET) { openVault(); return; }
+async function equals() {
   if (!expr) return;
+  if (/^\d{5,}$/.test(expr)) { const k = await tryUnlock(expr); if (k) { openVault(k); return; } }
   try { const v = evaluate(expr); ans = v; resEl.textContent = fmt(v); exprEl.textContent = expr + " ="; done = true; }
   catch (e) { resEl.textContent = "錯誤"; done = true; }
 }
 
 // ===== 相簿切換與自動鎖定 =====
-function openVault() {
+function openVault(key) {
+  vaultKey = key;
   expr = ""; resEl.textContent = "0"; done = false; render();
   $("calc").style.display = "none"; $("vault").style.display = "flex";
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+  (async () => { try { if (!db) db = await openDB(); renderGrid(); } catch (e) { $("status").textContent = "無法開啟儲存空間"; } })();
 }
 function lockVault() {
-  $("vault").style.display = "none"; $("calc").style.display = "flex";
+  closeViewer(); clearUrls(); $("grid").innerHTML = ""; $("status").textContent = "";
+  vaultKey = null;
+  $("vault").style.display = "none";
+  if (getCfg()) $("calc").style.display = "flex";
 }
+$("reset").addEventListener("click", () => {
+  if (confirm("重設會清除密碼與所有已加密的照片和影片，無法復原。確定嗎？")) {
+    if (db) db.close();
+    const done = () => { localStorage.removeItem("cfg"); location.reload(); };
+    const r = indexedDB.deleteDatabase("vault"); r.onsuccess = done; r.onerror = done; r.onblocked = done;
+  }
+});
+$("setupBtn").addEventListener("click", async () => {
+  const a = $("pw1").value, b = $("pw2").value, e = $("setupErr");
+  if (!/^\d{5,}$/.test(a)) { e.textContent = "密碼需為至少 5 位數字"; return; }
+  if (a !== b) { e.textContent = "兩次輸入不一致"; return; }
+  if (!window.crypto || !crypto.subtle) { e.textContent = "此瀏覽器不支援加密功能"; return; }
+  e.textContent = "處理中…";
+  try { await setupPassword(a); } catch (x) { e.textContent = "設定失敗，請改用 Chrome 或 Edge"; return; }
+  $("pw1").value = ""; $("pw2").value = ""; e.textContent = "";
+  $("setup").style.display = "none"; $("calc").style.display = "flex";
+});
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+if (!getCfg()) { $("calc").style.display = "none"; $("setup").style.display = "flex"; }
 $("lock").addEventListener("click", lockVault);
-document.addEventListener("visibilitychange", () => { if (document.hidden) lockVault(); });
-window.addEventListener("pagehide", lockVault);
-window.addEventListener("blur", lockVault);
+let picking = false; // 開啟檔案選擇器或分享面板時，暫不自動鎖定
+const autoLock = () => { if (!picking) lockVault(); };
+document.addEventListener("visibilitychange", () => { if (document.hidden) autoLock(); });
+window.addEventListener("pagehide", autoLock);
+window.addEventListener("focus", () => setTimeout(() => { picking = false; }, 1000));
+
+// ===== 加密儲存（IndexedDB）、匯入、瀏覽 =====
+const MAX_BYTES = 500 * 1024 * 1024;
+let db = null, urls = [], cur = null, curUrl = null;
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open("vault", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("items", { keyPath: "id" });
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+const tx = (mode, fn) => new Promise((res, rej) => {
+  const t = db.transaction("items", mode), r = fn(t.objectStore("items"));
+  t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error);
+});
+async function encBuf(buf) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  return { iv, data: await crypto.subtle.encrypt({ name: "AES-GCM", iv }, vaultKey, buf) };
+}
+const decBuf = o => crypto.subtle.decrypt({ name: "AES-GCM", iv: o.iv }, vaultKey, o.data);
+const setStatus = t => { $("status").textContent = t; };
+
+async function makeThumb(file) {
+  try {
+    const c = document.createElement("canvas"), M = 240;
+    if (file.type.startsWith("video/")) {
+      const u = URL.createObjectURL(file), v = document.createElement("video");
+      v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = u;
+      await new Promise((ok, no) => { v.onloadedmetadata = ok; v.onerror = no; setTimeout(no, 8000); });
+      v.currentTime = Math.min(0.5, (v.duration || 1) / 2);
+      await new Promise(ok => { v.onseeked = ok; setTimeout(ok, 3000); });
+      const k = Math.min(1, M / Math.max(v.videoWidth, v.videoHeight));
+      c.width = v.videoWidth * k; c.height = v.videoHeight * k;
+      c.getContext("2d").drawImage(v, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+    } else {
+      const b = await createImageBitmap(file), k = Math.min(1, M / Math.max(b.width, b.height));
+      c.width = b.width * k; c.height = b.height * k;
+      c.getContext("2d").drawImage(b, 0, 0, c.width, c.height);
+    }
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.7));
+    return blob ? await blob.arrayBuffer() : null;
+  } catch (e) { return null; }
+}
+
+async function importFiles(files) {
+  let n = 0, ok = 0;
+  for (const f of files) {
+    n++;
+    if (f.size > MAX_BYTES) { alert(f.name + " 超過 500 MB，已略過"); continue; }
+    if (!vaultKey) return;
+    setStatus("加密中 " + n + "/" + files.length + "…");
+    try {
+      const rec = { id: crypto.randomUUID(), created: Date.now() };
+      rec.file = await encBuf(await f.arrayBuffer());
+      rec.meta = await encBuf(enc.encode(JSON.stringify({ name: f.name, type: f.type, size: f.size })));
+      const tb = await makeThumb(f); rec.thumb = tb ? await encBuf(tb) : null;
+      await tx("readwrite", s => s.put(rec)); ok++;
+    } catch (e) { alert(f.name + " 匯入失敗（可能是空間不足）"); }
+  }
+  setStatus(ok ? "已加密儲存 " + ok + " 個檔案。請記得刪除系統相簿裡的原檔。" : "");
+  renderGrid();
+}
+function clearUrls() { urls.forEach(u => URL.revokeObjectURL(u)); urls = []; }
+async function renderGrid() {
+  if (!vaultKey || !db) return;
+  clearUrls(); const grid = $("grid"); grid.innerHTML = "";
+  const all = await tx("readonly", s => s.getAll());
+  all.sort((a, b) => b.created - a.created);
+  $("empty").style.display = all.length ? "none" : "block";
+  for (const rec of all) {
+    const d = document.createElement("div"); d.className = "cell"; grid.appendChild(d);
+    (async () => {
+      try {
+        const m = JSON.parse(new TextDecoder().decode(await decBuf(rec.meta)));
+        const isVid = m.type.startsWith("video/");
+        if (isVid) d.classList.add("vid");
+        if (rec.thumb) {
+          const u = URL.createObjectURL(new Blob([await decBuf(rec.thumb)], { type: "image/jpeg" }));
+          urls.push(u); d.style.backgroundImage = "url(" + u + ")";
+        } else { const ext = (m.name.split(".").pop() || "").slice(0, 5).toUpperCase(); d.textContent = ext || (isVid ? "▶" : "▢"); d.style.fontSize = "15px"; }
+        d.onclick = () => openViewer(rec, m);
+      } catch (e) {}
+    })();
+  }
+}
+async function openViewer(rec, m) {
+  try {
+    const blob = new Blob([await decBuf(rec.file)], { type: m.type });
+    closeViewer(); curUrl = URL.createObjectURL(blob); cur = { rec, m, blob };
+    const vid = m.type.startsWith("video/"), el = document.createElement(vid ? "video" : "img");
+    el.onerror = () => {
+      const t = document.createElement("div");
+      t.style.cssText = "color:#aaa;padding:24px;text-align:center;line-height:1.6";
+      t.textContent = "此瀏覽器無法顯示這種格式（" + (m.name.split(".").pop() || m.type) + "）。可按「匯出」取得原檔。";
+      $("vmedia").replaceChildren(t);
+    };
+    el.src = curUrl; if (vid) { el.controls = true; el.playsInline = true; }
+    $("vmedia").replaceChildren(el); $("viewer").style.display = "flex";
+  } catch (e) { alert("無法開啟此檔案"); }
+}
+function closeViewer() {
+  $("viewer").style.display = "none"; $("vmedia").replaceChildren();
+  if (curUrl) URL.revokeObjectURL(curUrl); curUrl = null; cur = null;
+}
+$("add").addEventListener("click", () => { picking = true; $("file").click(); });
+$("file").addEventListener("change", e => { const fs = [...e.target.files]; e.target.value = ""; picking = false; importFiles(fs); });
+$("vclose").addEventListener("click", closeViewer);
+$("vexp").addEventListener("click", async () => {
+  if (!cur) return;
+  const f = new File([cur.blob], cur.m.name || "file", { type: cur.m.type });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) {
+    picking = true; try { await navigator.share({ files: [f] }); } catch (e) {} return;
+  }
+  const a = document.createElement("a"); a.href = curUrl; a.download = f.name; a.click();
+});
+$("vdel").addEventListener("click", async () => {
+  if (!cur) return;
+  const id = cur.rec.id;
+  picking = true; const ok = confirm("確定要刪除？刪除後無法復原。"); setTimeout(() => { picking = false; }, 1000);
+  if (!ok) return;
+  closeViewer();
+  try { await tx("readwrite", s => s.delete(id)); } catch (e) { alert("刪除失敗"); }
+  renderGrid();
+});
 </script>
 </body>
 </html>
