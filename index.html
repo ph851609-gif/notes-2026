@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="計算機">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000000">
+<title>計算機</title>
+<style>
+  :root { --bg:#000; --key:#2b2b2d; --num:#3f3f42; --op:#e8891d; --txt:#f2f2f2; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html, body { height:100%; margin:0; background:var(--bg); color:var(--txt);
+    font-family:-apple-system,"SF Pro Text","Noto Sans TC","Helvetica Neue",sans-serif; overflow:hidden; }
+  body { padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px); }
+  #calc, #vault { height:100%; display:flex; flex-direction:column; max-width:520px; margin:0 auto; padding:10px; }
+  #vault { display:none; }
+  #screen { flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:flex-end;
+    padding:8px 12px 14px; min-height:110px; overflow:hidden; }
+  #expr { font-size:22px; color:#9a9a9f; min-height:28px; max-width:100%; overflow-x:auto; white-space:nowrap; }
+  #res { font-size:56px; font-weight:300; line-height:1.1; max-width:100%; overflow-x:auto; white-space:nowrap; }
+  #keys { display:grid; grid-template-columns:repeat(5,1fr); gap:9px; }
+  button { border:0; border-radius:14px; height:clamp(46px,8.4vh,62px); font-size:19px; color:var(--txt);
+    background:var(--key); font-family:inherit; }
+  button:active { filter:brightness(1.4); }
+  .n { background:var(--num); font-size:24px; }
+  .o { background:var(--op); font-size:26px; }
+  .s { font-size:16px; }
+  #deg.on { color:var(--op); }
+  #vhead { display:flex; justify-content:space-between; align-items:center; padding:14px 6px; }
+  #vhead h1 { font-size:22px; margin:0; font-weight:600; }
+  #lock { height:40px; padding:0 18px; background:var(--op); font-size:16px; }
+  #vbody { flex:1; display:flex; align-items:center; justify-content:center; color:#8a8a8f; font-size:17px; }
+  @media (prefers-reduced-motion:no-preference) { button { transition:filter .08s; } }
+</style>
+</head>
+<body>
+<div id="calc">
+  <div id="screen"><div id="expr"></div><div id="res">0</div></div>
+  <div id="keys"></div>
+</div>
+<div id="vault">
+  <div id="vhead"><h1>相簿</h1><button id="lock">鎖定</button></div>
+  <div id="vbody">還沒有照片或影片</div>
+</div>
+
+<script>
+// ===== 設定：測試用密碼（之後會改成可自訂） =====
+const SECRET = "246810";
+
+// ===== 計算引擎（遞迴下降，不使用 eval） =====
+let deg = true, ans = 0;
+function evaluate(s) {
+  let i = 0;
+  const err = () => { throw new Error("err"); };
+  const toRad = x => deg ? x * Math.PI / 180 : x;
+  const fact = n => { if (n < 0 || n !== Math.floor(n) || n > 170) err(); let r = 1; for (let k = 2; k <= n; k++) r *= k; return r; };
+  function expr() {
+    let v = term();
+    while (s[i] === "+" || s[i] === "−") { const o = s[i++]; const t = term(); v = o === "+" ? v + t : v - t; }
+    return v;
+  }
+  function term() {
+    let v = unary();
+    while (s[i] === "×" || s[i] === "÷") { const o = s[i++]; const t = unary(); if (o === "÷" && t === 0) err(); v = o === "×" ? v * t : v / t; }
+    return v;
+  }
+  function unary() {
+    if (s[i] === "−") { i++; return -unary(); }
+    if (s[i] === "+") { i++; return unary(); }
+    return pow();
+  }
+  function pow() {
+    let b = post();
+    if (s[i] === "^") { i++; return Math.pow(b, unary()); }
+    return b;
+  }
+  function post() {
+    let v = atom();
+    while (s[i] === "!" || s[i] === "%") { v = s[i++] === "!" ? fact(v) : v / 100; }
+    return v;
+  }
+  function atom() {
+    if (s[i] === "(") { i++; const v = expr(); if (s[i] === ")") i++; return v; }
+    if (s[i] === "π") { i++; return Math.PI; }
+    if (s.startsWith("Ans", i)) { i += 3; return ans; }
+    if (s[i] === "e") { i++; return Math.E; }
+    const m = /^\d*\.?\d+(?:\d*)|^\d+\.?/.exec(s.slice(i));
+    if (m && m[0] !== "") { i += m[0].length; return parseFloat(m[0]); }
+    const f = /^(sin|cos|tan|ln|log|√)\(/.exec(s.slice(i));
+    if (f) {
+      i += f[0].length; const x = expr(); if (s[i] === ")") i++;
+      switch (f[1]) {
+        case "sin": return Math.sin(toRad(x));
+        case "cos": return Math.cos(toRad(x));
+        case "tan": return Math.tan(toRad(x));
+        case "ln": if (x <= 0) err(); return Math.log(x);
+        case "log": if (x <= 0) err(); return Math.log10(x);
+        case "√": if (x < 0) err(); return Math.sqrt(x);
+      }
+    }
+    return err();
+  }
+  const v = expr();
+  if (i < s.length) err();
+  if (!isFinite(v)) err();
+  return v;
+}
+function fmt(v) {
+  v = parseFloat(v.toPrecision(12));
+  if (Math.abs(v) >= 1e12 || (Math.abs(v) < 1e-9 && v !== 0)) return v.toExponential(6).replace(/\.?0+e/, "e");
+  return String(v);
+}
+
+// ===== 介面 =====
+const keys = [
+  ["DEG","s","deg"],["sin(","s"],["cos(","s"],["tan(","s"],["AC","s"],
+  ["ln(","s"],["log(","s"],["√(","s"],["^2","s","x²"],["^","s","xʸ"],
+  ["π","s"],["e","s"],["(","s"],[")","s"],["!","s","n!"],
+  ["7","n"],["8","n"],["9","n"],["÷","o"],["DEL","s"],
+  ["4","n"],["5","n"],["6","n"],["×","o"],["%","s"],
+  ["1","n"],["2","n"],["3","n"],["−","o"],["Ans","s"],
+  ["0","n"],[".","n"],["00","n"],["+","o"],["=","o"]
+];
+const $ = id => document.getElementById(id);
+const exprEl = $("expr"), resEl = $("res");
+let expr = "", done = false;
+
+keys.forEach(([k, cls, label]) => {
+  const b = document.createElement("button");
+  b.className = cls; b.textContent = label || k; if (k === "DEG") b.id = "deg";
+  b.addEventListener("click", () => press(k));
+  $("keys").appendChild(b);
+});
+function render() { exprEl.textContent = expr; exprEl.scrollLeft = exprEl.scrollWidth; }
+function updateDeg() { const d = $("deg"); d.textContent = deg ? "DEG" : "RAD"; d.classList.toggle("on", true); }
+updateDeg();
+
+function press(k) {
+  if (k === "DEG") { deg = !deg; updateDeg(); return; }
+  if (k === "AC") { expr = ""; resEl.textContent = "0"; done = false; render(); return; }
+  if (k === "DEL") { expr = expr.replace(/(sin\(|cos\(|tan\(|ln\(|log\(|√\(|Ans|.)$/, ""); render(); return; }
+  if (k === "=") { equals(); return; }
+  const isOp = ["+","−","×","÷","^","^2","!","%"].includes(k);
+  if (done) { if (!isOp) expr = ""; else if (k !== "^2" || true) expr = "Ans"; done = false; }
+  expr += k; render();
+  try { const v = evaluate(expr); resEl.textContent = fmt(v); } catch (e) { /* 輸入中先不顯示錯誤 */ }
+}
+function equals() {
+  if (expr === SECRET) { openVault(); return; }
+  if (!expr) return;
+  try { const v = evaluate(expr); ans = v; resEl.textContent = fmt(v); exprEl.textContent = expr + " ="; done = true; }
+  catch (e) { resEl.textContent = "錯誤"; done = true; }
+}
+
+// ===== 相簿切換與自動鎖定 =====
+function openVault() {
+  expr = ""; resEl.textContent = "0"; done = false; render();
+  $("calc").style.display = "none"; $("vault").style.display = "flex";
+}
+function lockVault() {
+  $("vault").style.display = "none"; $("calc").style.display = "flex";
+}
+$("lock").addEventListener("click", lockVault);
+document.addEventListener("visibilitychange", () => { if (document.hidden) lockVault(); });
+window.addEventListener("pagehide", lockVault);
+window.addEventListener("blur", lockVault);
+</script>
+</body>
+</html>
