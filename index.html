@@ -31,32 +31,61 @@
   .o { background:var(--op); font-size:26px; }
   .s { font-size:16px; }
   #deg.on { color:var(--op); }
-  #vhead { display:flex; justify-content:space-between; align-items:center; padding:14px 6px; }
-  #vhead h1 { font-size:22px; margin:0; font-weight:600; }
-  #lock, #add { height:40px; padding:0 18px; background:var(--op); font-size:16px; margin-left:8px; }
-  #vbody { flex:1; overflow-y:auto; padding:4px; color:#8a8a8f; font-size:17px; }
-  #grid { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; }
-  .cell { aspect-ratio:1; background:#1c1c1e center/cover no-repeat; display:flex; align-items:center; justify-content:center; color:#777; font-size:28px; position:relative; }
-  .cell.vid::after { content:"▶"; position:absolute; right:6px; bottom:4px; font-size:14px; color:#fff; text-shadow:0 0 4px #000; }
-  #empty { text-align:center; padding-top:30vh; }
-  #status { text-align:center; color:var(--op); min-height:20px; padding:4px; font-size:14px; }
-  #viewer { display:none; position:fixed; inset:0; background:#000; z-index:10; flex-direction:column; padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px); }
-  #vbar { display:flex; justify-content:space-between; padding:10px; }
-  #vbar button { height:40px; padding:0 18px; font-size:16px; margin-left:8px; }
-  #vdel { background:#a33; }
-  #vmedia { flex:1; display:flex; align-items:center; justify-content:center; min-height:0; }
-  #vmedia img, #vmedia video { max-width:100%; max-height:100%; }
+  :root { --g0:#111214; --g1:#1a1c20; --g2:#262a30; --line:rgba(255,255,255,.09); --mut:#8e939c; --red:#e5534b; }
+  body.v { background:var(--g0); }
+  #vault { max-width:900px; padding:0 4px; animation:fadein .18s ease-out; }
+  @keyframes fadein { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+  #vhead { display:flex; align-items:flex-end; justify-content:space-between; gap:10px; padding:14px 10px 10px; }
+  #vhead h1 { font-size:26px; font-weight:650; margin:0; letter-spacing:-.3px; }
+  #count { font-size:13px; color:var(--mut); margin-top:2px; }
+  .vact { display:flex; gap:8px; }
+  .btn { height:44px; min-width:44px; padding:0 18px; border-radius:12px; font-size:16px; font-weight:600; background:var(--g2); color:var(--txt); transition:transform .1s, filter .1s; }
+  .btn:active { transform:scale(.96); }
+  .btn:disabled { opacity:.4; }
+  .btn.primary { background:var(--op); color:#1a1000; }
+  .btn.danger { background:var(--red); color:#fff; }
+  .btn.ghost { background:transparent; border:1px solid var(--line); color:var(--mut); font-size:14px; font-weight:500; }
+  #vbody { flex:1; overflow-y:auto; overscroll-behavior:contain; padding:2px 0 12px; }
+  #grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:3px; }
+  .cell { position:relative; aspect-ratio:1; height:auto; padding:0; border-radius:6px; overflow:hidden; background:var(--g1); color:var(--mut); font-size:13px; display:flex; align-items:center; justify-content:center; transition:transform .1s; }
+  .cell:active { transform:scale(.96); }
+  .cell img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity .2s; }
+  .cell.ready img { opacity:1; }
+  .cell.vid::after { content:""; position:absolute; left:6px; bottom:6px; width:22px; height:22px; border-radius:50%; background:rgba(0,0,0,.55) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath fill='white' d='M2.5 1.5v7l6-3.5z'/%3E%3C/svg%3E") center/10px no-repeat; }
+  #empty { display:none; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:12vh 24px 0; color:var(--mut); line-height:1.6; }
+  #empty b { color:var(--txt); font-size:18px; }
+  #more { margin:10px 10px 6px; color:var(--mut); font-size:14px; }
+  #more summary { cursor:pointer; padding:10px 0; }
+  #more p { line-height:1.6; margin:6px 0; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  #viewer { position:fixed; inset:0; z-index:10; background:#000; display:flex; flex-direction:column; padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px); opacity:0; visibility:hidden; transition:opacity .16s, visibility 0s .16s; }
+  #viewer.open { opacity:1; visibility:visible; transition:opacity .16s; }
+  #vbar { display:flex; align-items:center; gap:8px; padding:8px 10px; }
+  #vname { flex:1; min-width:0; text-align:center; font-size:15px; color:#cfd2d8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #vmedia { flex:1; display:flex; align-items:center; justify-content:center; min-height:0; padding:0 4px; }
+  #vmedia img, #vmedia video { max-width:100%; max-height:100%; object-fit:contain; }
+  .vmsg { color:var(--mut); padding:24px; text-align:center; line-height:1.6; }
+  .layer { position:fixed; inset:0; z-index:20; display:flex; align-items:flex-end; justify-content:center; background:rgba(0,0,0,.55); padding:12px calc(12px + env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) calc(12px + env(safe-area-inset-left,0px)); opacity:0; visibility:hidden; transition:opacity .15s, visibility 0s .15s; }
+  .layer.open { opacity:1; visibility:visible; transition:opacity .15s; }
+  .card { width:100%; max-width:420px; background:var(--g1); border:1px solid var(--line); border-radius:18px; padding:18px; display:flex; flex-direction:column; gap:12px; transform:translateY(10px); transition:transform .18s; user-select:text; }
+  .layer.open .card { transform:none; }
+  .card h2 { margin:0; font-size:18px; }
+  .card p { margin:0; color:var(--mut); line-height:1.6; font-size:15px; overflow-wrap:anywhere; }
+  .card .row { justify-content:flex-end; }
+  #shBar { height:6px; border-radius:3px; background:var(--g2); overflow:hidden; }
+  #shBar i { display:block; height:100%; width:0; background:var(--op); transition:width .2s; }
+  #shList { margin:0; padding-left:18px; max-height:30vh; overflow:auto; color:var(--mut); font-size:14px; line-height:1.5; overflow-wrap:anywhere; }
+  #toast { position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom,0px)); transform:translate(-50%,20px); z-index:30; background:#2b2e34; border:1px solid var(--line); border-radius:14px; padding:10px 14px; display:flex; gap:12px; align-items:center; max-width:min(92vw,460px); opacity:0; visibility:hidden; transition:opacity .15s, transform .15s, visibility 0s .15s; font-size:14px; line-height:1.5; }
+  #toast.show { opacity:1; visibility:visible; transform:translate(-50%,0); transition:opacity .15s, transform .15s; }
+  #toast button { height:34px; padding:0 12px; font-size:14px; background:var(--g2); white-space:nowrap; }
   #setup { display:none; height:100%; flex-direction:column; justify-content:center; gap:14px; max-width:420px; margin:0 auto; padding:24px; user-select:text; }
-  #setup h1 { font-size:24px; margin:0; }
-  #setup p { margin:0; color:#9a9a9f; line-height:1.5; font-size:15px; }
-  #setup input { height:48px; border-radius:12px; border:1px solid #444; background:#1c1c1e; color:var(--txt); font-size:20px; padding:0 14px; letter-spacing:4px; }
-  #setupBtn { background:var(--op); height:50px; }
-  #setupErr { color:#ff6b6b; min-height:20px; }
-  #reset { height:36px; padding:0 14px; font-size:14px; background:transparent; color:#8a8a8f; border:1px solid #444; margin-bottom:10px; align-self:center; }
-  #vfoot { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:10px; }
-  #vfoot button, #setupCancel { height:36px; padding:0 12px; font-size:14px; background:transparent; color:#8a8a8f; border:1px solid #444; }
-  #setupCancel { height:44px; font-size:16px; }
-  @media (prefers-reduced-motion:no-preference) { button { transition:filter .08s; } }
+  #setup h1 { font-size:26px; margin:0; }
+  #setup p { margin:0; color:var(--mut); line-height:1.6; font-size:15px; }
+  #setup .note { font-size:13px; }
+  #setup input { height:50px; border-radius:12px; border:1px solid var(--line); background:var(--g1); color:var(--txt); font-size:20px; padding:0 14px; letter-spacing:4px; }
+  #setupErr { color:#ff7b72; min-height:20px; font-size:14px; }
+  #setupBtn, #setupCancel { height:50px; }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
 </style>
 </head>
 <body>
@@ -65,14 +94,24 @@
   <div id="keys"></div>
 </div>
 <div id="vault">
-  <div id="vhead"><h1 id="vtitle">相簿</h1><div><button id="add">匯入</button><button id="lock">鎖定</button></div></div>
-  <div id="status"></div>
-  <div id="vbody"><div id="grid"></div><div id="empty">還沒有照片或影片</div></div>
-  <div id="vfoot"><button id="addAlbum">新增相簿</button><button id="delAlbum">刪除此相簿</button><button id="reset">清除全部相簿並重設</button></div>
+  <div id="vhead">
+    <div><h1 id="vtitle">相簿</h1><div id="count"></div></div>
+    <div class="vact"><button class="btn primary" id="add">匯入</button><button class="btn" id="lock">鎖定</button></div>
+  </div>
+  <div id="vbody">
+    <div id="grid"></div>
+    <div id="empty"><b>這個相簿還是空的</b><span>匯入的照片和影片會先加密，再存放在這個瀏覽器的本機空間。</span><button class="btn primary" id="addEmpty">匯入照片或影片</button></div>
+    <details id="more"><summary>管理與隱私說明</summary>
+      <p id="stor"></p>
+      <p>資料只儲存在目前使用的瀏覽器本機空間，不會自動同步或備份。清除網站資料、更換裝置或瀏覽器，或系統回收空間，都可能導致資料無法取回，重要檔案請另外保留原檔。</p>
+      <p>加密只保護存放在本機的內容，無法防範提供此網頁程式的網站被人竄改。</p>
+      <div class="row"><button class="btn ghost" id="addAlbum">新增相簿</button><button class="btn ghost" id="delAlbum">刪除此相簿</button><button class="btn ghost" id="reset">清除全部相簿並重設</button></div>
+    </details>
+  </div>
   <input id="file" type="file" multiple accept="image/*,video/*" hidden>
 </div>
 <div id="viewer">
-  <div id="vbar"><button id="vclose">關閉</button><span><button id="vexp">匯出</button><button id="vdel">刪除</button></span></div>
+  <div id="vbar"><button class="btn" id="vclose" aria-label="返回相簿">‹ 返回</button><div id="vname"></div><button class="btn" id="vexp">匯出</button><button class="btn danger" id="vdel">刪除</button></div>
   <div id="vmedia"></div>
 </div>
 <div id="setup">
@@ -81,9 +120,19 @@
   <input id="pw1" type="password" inputmode="numeric" autocomplete="off" placeholder="輸入密碼">
   <input id="pw2" type="password" inputmode="numeric" autocomplete="off" placeholder="再輸入一次">
   <div id="setupErr"></div>
-  <button id="setupBtn">完成設定</button>
-  <button id="setupCancel" style="display:none">取消</button>
+  <button class="btn primary" id="setupBtn">完成設定</button>
+  <button class="btn ghost" id="setupCancel" style="display:none">取消</button>
+  <p class="note">資料只儲存在這個瀏覽器的本機空間，不會自動同步；清除網站資料或更換裝置可能無法取回。加密無法防範網站程式被竄改。</p>
 </div>
+<div id="sheet" class="layer" role="dialog" aria-live="polite"><div class="card">
+  <h2 id="shTitle"></h2><div id="shBar"><i></i></div><p id="shLine"></p><ul id="shList"></ul>
+  <div class="row"><button class="btn ghost" id="shStop">停止</button><button class="btn primary" id="shClose">完成</button></div>
+</div></div>
+<div id="dlg" class="layer" role="alertdialog" aria-modal="true"><div class="card">
+  <h2 id="dT"></h2><p id="dB"></p>
+  <div class="row"><button class="btn" id="dNo">取消</button><button class="btn primary" id="dYes">確定</button></div>
+</div></div>
+<div id="toast" role="status"><span id="toastMsg"></span><button id="toastAct"></button></div>
 
 <script>
 // ===== 加密：密碼 → PBKDF2 → AES-256-GCM 金鑰 =====
@@ -229,207 +278,297 @@ async function equals() {
   catch (e) { resEl.textContent = "錯誤"; done = true; }
 }
 
-// ===== 相簿切換與自動鎖定 =====
-function openVault(key, id) {
-  vaultKey = key; albumId = id;
-  { const c = getCfg(), i = c.albums.findIndex(a => a.id === id); $("vtitle").textContent = c.albums.length > 1 ? "相簿 " + (i + 1) : "相簿"; }
-  expr = ""; resEl.textContent = "0"; done = false; render();
-  $("calc").style.display = "none"; $("vault").style.display = "flex";
-  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
-  (async () => { try { if (!db) db = await openDB(); renderGrid(); } catch (e) { $("status").textContent = "無法開啟儲存空間"; } })();
-}
-function lockVault() {
-  closeViewer(); clearUrls(); $("grid").innerHTML = ""; $("status").textContent = "";
-  vaultKey = null; albumId = null;
-  if (setupMode === "add") { resetSetupUI(); setupMode = "first"; }
-  $("vault").style.display = "none";
-  if (getCfg()) $("calc").style.display = "flex";
-}
-$("reset").addEventListener("click", () => {
-  if (confirm("重設會清除所有相簿的密碼與內容，無法復原。確定嗎？")) {
-    if (db) db.close();
-    const done = () => { localStorage.removeItem("cfg"); location.reload(); };
-    const r = indexedDB.deleteDatabase("vault"); r.onsuccess = done; r.onerror = done; r.onblocked = done;
-  }
-});
-$("setupBtn").addEventListener("click", async () => {
-  const a = $("pw1").value, b = $("pw2").value, e = $("setupErr");
-  if (!/^\d{5,}$/.test(a)) { e.textContent = "密碼需為至少 5 位數字"; return; }
-  if (a !== b) { e.textContent = "兩次輸入不一致"; return; }
-  if (!window.crypto || !crypto.subtle) { e.textContent = "此瀏覽器不支援加密功能"; return; }
-  e.textContent = "處理中…";
-  try {
-    if (setupMode === "add" && await tryUnlock(a)) { e.textContent = "此密碼已被其他相簿使用，請換一組"; return; }
-    await addAlbum(a);
-  } catch (x) { e.textContent = "設定失敗，請改用 Chrome 或 Edge"; return; }
-  endSetup();
-});
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
-if (!getCfg()) { $("calc").style.display = "none"; $("setup").style.display = "flex"; }
-$("lock").addEventListener("click", lockVault);
-let picking = false; // 開啟檔案選擇器或分享面板時，暫不自動鎖定
-const autoLock = () => { if (!picking) lockVault(); };
-document.addEventListener("visibilitychange", () => { if (document.hidden) autoLock(); });
-window.addEventListener("pagehide", autoLock);
-window.addEventListener("focus", () => setTimeout(() => { picking = false; }, 1000));
-
-// ===== 加密儲存（IndexedDB）、匯入、瀏覽 =====
+// ===== 相簿：解鎖、鎖定、儲存、瀏覽 =====
 const MAX_BYTES = 500 * 1024 * 1024;
-let db = null, urls = [], cur = null, curUrl = null;
+let picking = false, db = null, urls = [], cur = null, curUrl = null, token = 0, viewTok = 0, io = null, stop = false, dlgDone = null, toastT = 0;
+const fmtSize = n => n >= 1e9 ? (n / 1e9).toFixed(1) + " GB" : n >= 1e6 ? (n / 1e6).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1e3)) + " KB";
+const ext = n => ((n || "").split(".").pop() || "").slice(0, 5).toUpperCase();
+const isVid = m => m.kind ? m.kind === "video" : (m.type || "").startsWith("video/");
+const kindOf = f => (/^image\//.test(f.type) || /\.(jpe?g|png|gif|webp|avif|heic|heif|bmp)$/i.test(f.name)) ? "image"
+  : (/^video\//.test(f.type) || /\.(mp4|mov|m4v|webm|3gp|mkv)$/i.test(f.name)) ? "video" : null;
+const getEst = async () => { try { return await navigator.storage.estimate(); } catch (e) { return null; } };
+
+// --- 提示、對話框 ---
+function hideToast() { clearTimeout(toastT); $("toast").classList.remove("show"); }
+function toast(msg, label, fn) {
+  $("toastMsg").textContent = msg; const a = $("toastAct");
+  a.style.display = label ? "" : "none"; a.textContent = label || "";
+  a.onclick = fn ? () => { hideToast(); fn(); } : null;
+  $("toast").classList.add("show"); clearTimeout(toastT); toastT = setTimeout(hideToast, label ? 8000 : 4000);
+}
+function closeDlg(v) { $("dlg").classList.remove("open"); if (dlgDone) { const r = dlgDone; dlgDone = null; r(v); } }
+function ask(title, body, ok, danger) {
+  return new Promise(res => {
+    closeDlg(false); dlgDone = res;
+    $("dT").textContent = title; $("dB").textContent = body;
+    const y = $("dYes"); y.textContent = ok || "確定"; y.className = "btn " + (danger ? "danger" : "primary");
+    $("dlg").classList.add("open");
+  });
+}
+$("dYes").addEventListener("click", () => closeDlg(true));
+$("dNo").addEventListener("click", () => closeDlg(false));
+document.addEventListener("keydown", e => { if (e.key === "Escape") { if (dlgDone) closeDlg(false); else if ($("viewer").classList.contains("open")) closeViewer(); } });
+
+// --- 儲存：items 只放加密後的檔案本體，idx 放加密後的檔名與縮圖（列表只讀 idx，不會把原檔全部載入） ---
 function openDB() {
   return new Promise((res, rej) => {
-    const r = indexedDB.open("vault", 1);
-    r.onupgradeneeded = () => r.result.createObjectStore("items", { keyPath: "id" });
+    const r = indexedDB.open("vault", 2);
+    r.onupgradeneeded = e => {
+      const d = r.result;
+      if (!d.objectStoreNames.contains("items")) d.createObjectStore("items", { keyPath: "id" });
+      if (!d.objectStoreNames.contains("idx")) {
+        const ix = d.createObjectStore("idx", { keyPath: "id" });
+        if (e.oldVersion >= 1) r.transaction.objectStore("items").openCursor().onsuccess = ev => {
+          const c = ev.target.result; if (!c) return; const v = c.value;
+          ix.put({ id: v.id, created: v.created, album: v.album, meta: v.meta, thumb: v.thumb });
+          c.update({ id: v.id, file: v.file }); c.continue();
+        };
+      }
+    };
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
 }
-const tx = (mode, fn) => new Promise((res, rej) => {
-  const t = db.transaction("items", mode), r = fn(t.objectStore("items"));
-  t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error);
+const tx = (stores, mode, fn) => new Promise((res, rej) => {
+  const t = db.transaction(stores, mode), r = fn(...stores.map(n => t.objectStore(n)));
+  t.oncomplete = () => res(r && r.result); t.onerror = t.onabort = () => rej(t.error);
 });
 async function encBuf(buf) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   return { iv, data: await crypto.subtle.encrypt({ name: "AES-GCM", iv }, vaultKey, buf) };
 }
 const decBuf = o => crypto.subtle.decrypt({ name: "AES-GCM", iv: o.iv }, vaultKey, o.data);
-const setStatus = t => { $("status").textContent = t; };
+const decMeta = async o => JSON.parse(new TextDecoder().decode(await decBuf(o)));
 
-async function makeThumb(file) {
+async function makeThumb(file, kind) {
+  let u = null;
   try {
-    const c = document.createElement("canvas"), M = 240;
-    if (file.type.startsWith("video/")) {
-      const u = URL.createObjectURL(file), v = document.createElement("video");
+    const c = document.createElement("canvas"), M = 320;
+    if (kind === "video") {
+      u = URL.createObjectURL(file); const v = document.createElement("video");
       v.muted = true; v.playsInline = true; v.preload = "auto"; v.src = u;
       await new Promise((ok, no) => { v.onloadedmetadata = ok; v.onerror = no; setTimeout(no, 8000); });
       v.currentTime = Math.min(0.5, (v.duration || 1) / 2);
       await new Promise(ok => { v.onseeked = ok; setTimeout(ok, 3000); });
       const k = Math.min(1, M / Math.max(v.videoWidth, v.videoHeight));
       c.width = v.videoWidth * k; c.height = v.videoHeight * k;
-      c.getContext("2d").drawImage(v, 0, 0, c.width, c.height); URL.revokeObjectURL(u);
+      c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
     } else {
       const b = await createImageBitmap(file), k = Math.min(1, M / Math.max(b.width, b.height));
       c.width = b.width * k; c.height = b.height * k;
       c.getContext("2d").drawImage(b, 0, 0, c.width, c.height);
     }
-    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.7));
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.72));
     return blob ? await blob.arrayBuffer() : null;
-  } catch (e) { return null; }
+  } catch (e) { return null; } finally { if (u) URL.revokeObjectURL(u); }
 }
 
-async function importFiles(files) {
-  let n = 0, ok = 0;
-  for (const f of files) {
-    n++;
-    if (f.size > MAX_BYTES) { alert(f.name + " 超過 500 MB，已略過"); continue; }
-    if (!vaultKey) return;
-    setStatus("加密中 " + n + "/" + files.length + "…");
-    try {
-      const rec = { id: crypto.randomUUID(), created: Date.now(), album: albumId };
-      rec.file = await encBuf(await f.arrayBuffer());
-      rec.meta = await encBuf(enc.encode(JSON.stringify({ name: f.name, type: f.type, size: f.size })));
-      const tb = await makeThumb(f); rec.thumb = tb ? await encBuf(tb) : null;
-      await tx("readwrite", s => s.put(rec)); ok++;
-    } catch (e) { alert(f.name + " 匯入失敗（可能是空間不足）"); }
-  }
-  setStatus(ok ? "已加密儲存 " + ok + " 個檔案。請記得刪除系統相簿裡的原檔。" : "");
-  renderGrid();
+// --- 開啟 / 鎖定 ---
+function openVault(key, id) {
+  vaultKey = key; albumId = id;
+  const c = getCfg(), i = c.albums.findIndex(a => a.id === id);
+  $("vtitle").textContent = c.albums.length > 1 ? "相簿 " + (i + 1) : "相簿";
+  expr = ""; resEl.textContent = "0"; done = false; render();
+  document.body.classList.add("v");
+  $("calc").style.display = "none"; $("vault").style.display = "flex";
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch (e) {}
+  (async () => { try { if (!db) db = await openDB(); await renderGrid(); } catch (e) { toast("無法開啟儲存空間。請改用 Chrome、Edge 或 Safari，並確認沒有使用無痕模式。"); } })();
+}
+function lockVault() {
+  token++; stop = true; if (io) { io.disconnect(); io = null; }
+  closeViewer(); clearUrls(); closeDlg(false); hideToast();
+  $("sheet").classList.remove("open"); $("grid").replaceChildren(); $("count").textContent = ""; $("stor").textContent = ""; $("more").open = false;
+  vaultKey = null; albumId = null;
+  if (setupMode === "add") { resetSetupUI(); setupMode = "first"; }
+  document.body.classList.remove("v"); $("vault").style.display = "none";
+  if (getCfg()) $("calc").style.display = "flex";
 }
 function clearUrls() { urls.forEach(u => URL.revokeObjectURL(u)); urls = []; }
+$("lock").addEventListener("click", lockVault);
+const autoLock = () => { if (!picking) lockVault(); };
+document.addEventListener("visibilitychange", () => { if (document.hidden) autoLock(); });
+window.addEventListener("pagehide", autoLock);
+window.addEventListener("focus", () => setTimeout(() => { picking = false; }, 1000));
+
+// --- 列表（縮圖進入畫面時才解密） ---
+async function updateStats(n) {
+  $("count").textContent = n + " 個項目";
+  const e = await getEst(); if (!vaultKey) return;
+  let p = false; try { p = await navigator.storage.persisted(); } catch (x) {}
+  if (e && e.usage != null) {
+    $("count").textContent = n + " 個項目 · 本站已用 " + fmtSize(e.usage);
+    $("stor").textContent = "本站已用 " + fmtSize(e.usage) + (e.quota ? "，瀏覽器預估上限約 " + fmtSize(e.quota) + "（實際可用空間依裝置而定）" : "") + "。儲存保護：" + (p ? "已啟用。" : "未啟用，裝置空間不足時資料可能被系統清除。");
+  } else $("stor").textContent = "此瀏覽器未提供儲存空間資訊。";
+}
+async function hydrate(d) {
+  const rec = d._rec, my = token;
+  try {
+    const m = await decMeta(rec.meta);
+    if (my !== token || !vaultKey) return;
+    d.setAttribute("aria-label", (isVid(m) ? "影片：" : "照片：") + m.name);
+    if (isVid(m)) d.classList.add("vid");
+    if (rec.thumb) {
+      const u = URL.createObjectURL(new Blob([await decBuf(rec.thumb)], { type: "image/jpeg" }));
+      if (my !== token) { URL.revokeObjectURL(u); return; }
+      urls.push(u); const im = new Image(); im.alt = ""; im.onload = () => d.classList.add("ready"); im.src = u; d.prepend(im);
+    } else d.append(ext(m.name) || (isVid(m) ? "影片" : "照片"));
+  } catch (e) {}
+}
 async function renderGrid() {
   if (!vaultKey || !db) return;
-  clearUrls(); const grid = $("grid"); grid.innerHTML = "";
-  const all = (await tx("readonly", s => s.getAll())).filter(r => (r.album || "a0") === albumId);
-  all.sort((a, b) => b.created - a.created);
-  $("empty").style.display = all.length ? "none" : "block";
+  const my = ++token;
+  const all = (await tx(["idx"], "readonly", s => s.getAll())).filter(r => (r.album || "a0") === albumId).sort((a, b) => b.created - a.created);
+  if (my !== token || !vaultKey) return;
+  if (io) io.disconnect(); clearUrls();
+  const grid = $("grid"); grid.replaceChildren();
+  grid.style.display = all.length ? "grid" : "none"; $("empty").style.display = all.length ? "none" : "flex";
+  updateStats(all.length);
+  io = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { io.unobserve(en.target); hydrate(en.target); } }), { root: $("vbody"), rootMargin: "400px" });
   for (const rec of all) {
-    const d = document.createElement("div"); d.className = "cell"; grid.appendChild(d);
-    (async () => {
-      try {
-        const m = JSON.parse(new TextDecoder().decode(await decBuf(rec.meta)));
-        const isVid = m.type.startsWith("video/");
-        if (isVid) d.classList.add("vid");
-        if (rec.thumb) {
-          const u = URL.createObjectURL(new Blob([await decBuf(rec.thumb)], { type: "image/jpeg" }));
-          urls.push(u); d.style.backgroundImage = "url(" + u + ")";
-        } else { const ext = (m.name.split(".").pop() || "").slice(0, 5).toUpperCase(); d.textContent = ext || (isVid ? "▶" : "▢"); d.style.fontSize = "15px"; }
-        d.onclick = () => openViewer(rec, m);
-      } catch (e) {}
-    })();
+    const d = document.createElement("button"); d.type = "button"; d.className = "cell"; d.setAttribute("aria-label", "開啟項目");
+    d._rec = rec; d.onclick = () => openViewer(rec); grid.appendChild(d); io.observe(d);
   }
 }
-async function openViewer(rec, m) {
-  try {
-    const blob = new Blob([await decBuf(rec.file)], { type: m.type });
-    closeViewer(); curUrl = URL.createObjectURL(blob); cur = { rec, m, blob };
-    const vid = m.type.startsWith("video/"), el = document.createElement(vid ? "video" : "img");
-    el.onerror = () => {
-      const t = document.createElement("div");
-      t.style.cssText = "color:#aaa;padding:24px;text-align:center;line-height:1.6";
-      t.textContent = "此瀏覽器無法顯示這種格式（" + (m.name.split(".").pop() || m.type) + "）。可按「匯出」取得原檔。";
-      $("vmedia").replaceChildren(t);
-    };
-    el.src = curUrl; if (vid) { el.controls = true; el.playsInline = true; }
-    $("vmedia").replaceChildren(el); $("viewer").style.display = "flex";
-  } catch (e) { alert("無法開啟此檔案"); }
-}
-function closeViewer() {
-  $("viewer").style.display = "none"; $("vmedia").replaceChildren();
-  if (curUrl) URL.revokeObjectURL(curUrl); curUrl = null; cur = null;
-}
-$("add").addEventListener("click", () => { picking = true; $("file").click(); });
+
+// --- 匯入 ---
+function pickFiles() { picking = true; $("file").click(); }
+$("add").addEventListener("click", pickFiles);
+$("addEmpty").addEventListener("click", pickFiles);
 $("file").addEventListener("change", e => { const fs = [...e.target.files]; e.target.value = ""; picking = false; importFiles(fs); });
-$("vclose").addEventListener("click", closeViewer);
-$("vexp").addEventListener("click", async () => {
-  if (!cur) return;
-  const f = new File([cur.blob], cur.m.name || "file", { type: cur.m.type });
-  if (navigator.canShare && navigator.canShare({ files: [f] })) {
-    picking = true; try { await navigator.share({ files: [f] }); } catch (e) {} return;
+$("shStop").addEventListener("click", () => { stop = true; $("shStop").disabled = true; });
+$("shClose").addEventListener("click", () => $("sheet").classList.remove("open"));
+async function importFiles(files) {
+  if (!files.length || !vaultKey) return;
+  stop = false; const bar = $("shBar").firstElementChild;
+  $("shTitle").textContent = "正在加密匯入"; $("shList").replaceChildren(); bar.style.width = "0";
+  $("shStop").style.display = ""; $("shStop").disabled = false; $("shClose").style.display = "none"; $("sheet").classList.add("open");
+  const bad = [], notes = []; let ok = 0, i = 0;
+  for (const f of files) {
+    if (stop || !vaultKey) break;
+    i++; $("shLine").textContent = i + " / " + files.length + " · " + f.name; bar.style.width = ((i - 1) / files.length * 100) + "%";
+    const kind = kindOf(f);
+    if (!kind) { bad.push([f.name, "格式不支援，只能匯入照片與影片。"]); continue; }
+    if (f.size > MAX_BYTES) { bad.push([f.name, "檔案超過 500 MB 上限。請先壓縮或剪短影片後再匯入。"]); continue; }
+    try {
+      const est = await getEst();
+      if (est && est.quota && est.usage + f.size * 1.3 > est.quota) { bad.push([f.name, "儲存空間不足。請先刪除不需要的項目，或釋出裝置空間後再試。"]); continue; }
+      const id = crypto.randomUUID();
+      const file = await encBuf(await f.arrayBuffer());
+      const meta = await encBuf(enc.encode(JSON.stringify({ name: f.name, type: f.type, size: f.size, kind })));
+      const tb = await makeThumb(f, kind), thumb = tb ? await encBuf(tb) : null;
+      if (!vaultKey) break;
+      await tx(["idx", "items"], "readwrite", (ix, it) => { it.put({ id, file }); ix.put({ id, created: Date.now(), album: albumId, meta, thumb }); });
+      ok++; if (!tb) notes.push([f.name, "已儲存，但此瀏覽器無法產生縮圖，仍可開啟或匯出。"]);
+    } catch (err) {
+      bad.push([f.name, /Quota/i.test((err && err.name) || "") ? "儲存空間不足。請先刪除不需要的項目，或釋出裝置空間後再試。" : "加密或儲存失敗，請再試一次。"]);
+    }
   }
-  const a = document.createElement("a"); a.href = curUrl; a.download = f.name; a.click();
+  if (!vaultKey) return;
+  bar.style.width = "100%";
+  $("shTitle").textContent = stop ? "已停止匯入" : (bad.length && !ok ? "匯入失敗" : "匯入完成");
+  $("shLine").textContent = "成功 " + ok + " 個" + (bad.length ? "，失敗 " + bad.length + " 個" : "") + "。" + (ok ? "請記得刪除裝置相簿裡的原檔。" : "");
+  for (const [n, why] of bad.concat(notes)) { const li = document.createElement("li"); li.textContent = n + "：" + why; $("shList").appendChild(li); }
+  $("shStop").style.display = "none"; $("shClose").style.display = "";
+  renderGrid();
+}
+
+// --- 檢視、匯出、刪除 ---
+const msg = t => { const d = document.createElement("div"); d.className = "vmsg"; d.textContent = t; return d; };
+function setViewerBtns() { $("vexp").disabled = $("vdel").disabled = !cur; }
+function releaseMedia() { $("vmedia").replaceChildren(); if (curUrl) URL.revokeObjectURL(curUrl); curUrl = null; cur = null; setViewerBtns(); }
+function closeViewer() { viewTok++; $("viewer").classList.remove("open"); $("vname").textContent = ""; releaseMedia(); }
+async function openViewer(rec) {
+  const my = ++viewTok; releaseMedia();
+  $("vname").textContent = ""; $("vmedia").replaceChildren(msg("正在解密…")); $("viewer").classList.add("open");
+  try {
+    const m = await decMeta(rec.meta); if (my !== viewTok) return;
+    $("vname").textContent = m.name;
+    const item = await tx(["items"], "readonly", s => s.get(rec.id));
+    const blob = new Blob([await decBuf(item.file)], { type: m.type || "" });
+    if (my !== viewTok || !vaultKey) return;
+    curUrl = URL.createObjectURL(blob); cur = { rec, m, blob };
+    const vid = isVid(m), el = document.createElement(vid ? "video" : "img");
+    el.onerror = () => $("vmedia").replaceChildren(msg("此瀏覽器無法顯示這種格式（" + ext(m.name) + "）。可按「匯出」取得原檔。"));
+    el.src = curUrl; if (vid) { el.controls = true; el.playsInline = true; } else el.alt = m.name;
+    $("vmedia").replaceChildren(el); setViewerBtns();
+  } catch (e) { if (my === viewTok) $("vmedia").replaceChildren(msg("無法開啟此項目，資料可能已損毀。")); }
+}
+$("vclose").addEventListener("click", closeViewer);
+function download(c) {
+  try {
+    const a = document.createElement("a"); a.href = curUrl; a.download = c.m.name || "file"; document.body.appendChild(a); a.click(); a.remove();
+    toast("已送出下載「" + c.m.name + "」。若沒有看到檔案，請查看瀏覽器的下載項目。");
+  } catch (e) { toast("下載失敗，請再試一次。"); }
+}
+$("vexp").addEventListener("click", async () => {
+  const c = cur; if (!c) return;
+  const f = new File([c.blob], c.m.name || "file", { type: c.m.type || "" });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) {
+    picking = true;
+    try { await navigator.share({ files: [f] }); toast("已完成分享「" + c.m.name + "」"); }
+    catch (e) { toast(e && e.name === "AbortError" ? "已取消分享" : "分享失敗", "改用下載", () => { if (cur === c) download(c); }); }
+    setTimeout(() => { picking = false; }, 1500); return;
+  }
+  download(c);
 });
 $("vdel").addEventListener("click", async () => {
-  if (!cur) return;
-  const id = cur.rec.id;
-  picking = true; const ok = confirm("確定要刪除？刪除後無法復原。"); setTimeout(() => { picking = false; }, 1000);
-  if (!ok) return;
-  closeViewer();
-  try { await tx("readwrite", s => s.delete(id)); } catch (e) { alert("刪除失敗"); }
-  renderGrid();
+  const c = cur; if (!c) return;
+  const ok = await ask("永久刪除這個項目？", "「" + c.m.name + "」會從這個相簿永久移除，無法復原。若還沒有備份，請先按「匯出」。", "永久刪除", true);
+  if (!ok || !vaultKey) return;
+  try { await tx(["idx", "items"], "readwrite", (ix, it) => { ix.delete(c.rec.id); it.delete(c.rec.id); }); closeViewer(); toast("已刪除「" + c.m.name + "」"); renderGrid(); }
+  catch (e) { toast("刪除失敗，請再試一次。"); }
 });
 
-// ===== 多相簿：新增、刪除 =====
-const setupOrig = [$("setupTitle").textContent, $("setupText").textContent];
+// --- 多相簿與重設 ---
 function resetSetupUI() {
   $("pw1").value = ""; $("pw2").value = ""; $("setupErr").textContent = "";
   $("setup").style.display = "none"; $("setupCancel").style.display = "none";
   $("setupTitle").textContent = setupOrig[0]; $("setupText").textContent = setupOrig[1];
 }
+const setupOrig = [$("setupTitle").textContent, $("setupText").textContent];
 function endSetup() {
-  const wasAdd = setupMode === "add";
-  resetSetupUI(); setupMode = "first";
+  const wasAdd = setupMode === "add"; resetSetupUI(); setupMode = "first";
   $(wasAdd ? "vault" : "calc").style.display = "flex";
 }
-$("addAlbum").addEventListener("click", () => {
-  const c = getCfg();
-  if (c && c.albums.length >= 5) { alert("最多 5 個相簿"); return; }
-  setupMode = "add";
-  $("setupTitle").textContent = "新增相簿";
-  $("setupText").textContent = "請為新相簿設定另一組密碼（僅限數字，至少 5 碼，且不能與其他相簿相同）。忘記密碼將無法找回該相簿的內容。";
-  $("setupCancel").style.display = "block";
-  $("vault").style.display = "none"; $("setup").style.display = "flex";
+$("setupBtn").addEventListener("click", async () => {
+  const a = $("pw1").value, b = $("pw2").value, e = $("setupErr");
+  if (!/^\d{5,}$/.test(a)) { e.textContent = "密碼需為至少 5 位數字"; return; }
+  if (a !== b) { e.textContent = "兩次輸入不一致"; return; }
+  if (!window.crypto || !crypto.subtle) { e.textContent = "此瀏覽器不支援加密功能"; return; }
+  e.textContent = "處理中…"; $("setupBtn").disabled = true;
+  try {
+    if (setupMode === "add" && await tryUnlock(a)) { e.textContent = "此密碼已被其他相簿使用，請換一組"; return; }
+    await addAlbum(a);
+  } catch (x) { e.textContent = "設定失敗，請改用 Chrome、Edge 或 Safari"; return; }
+  finally { $("setupBtn").disabled = false; }
+  endSetup();
 });
 $("setupCancel").addEventListener("click", endSetup);
+$("addAlbum").addEventListener("click", () => {
+  const c = getCfg();
+  if (c && c.albums.length >= 5) { toast("最多只能有 5 個相簿"); return; }
+  setupMode = "add"; $("setupTitle").textContent = "新增相簿";
+  $("setupText").textContent = "請為新相簿設定另一組密碼（僅限數字，至少 5 碼，且不能與其他相簿相同）。忘記密碼將無法找回該相簿的內容。";
+  $("setupCancel").style.display = ""; $("vault").style.display = "none"; $("setup").style.display = "flex";
+});
 $("delAlbum").addEventListener("click", async () => {
-  if (!albumId || !confirm("確定要刪除這個相簿？其中所有照片與影片都會被清除，無法復原。")) return;
-  const id = albumId;
+  if (!albumId) return; const id = albumId;
+  if (!await ask("刪除這個相簿？", "這個相簿的密碼，以及其中所有照片和影片都會永久移除，無法復原。其他相簿不受影響。", "永久刪除", true) || !vaultKey) return;
   try {
-    const all = await tx("readonly", s => s.getAll());
-    for (const r of all) if ((r.album || "a0") === id) await tx("readwrite", s => s.delete(r.id));
-    const c = getCfg(); c.albums = c.albums.filter(a => a.id !== id);
-    localStorage.setItem("cfg", JSON.stringify(c));
-  } catch (e) { alert("刪除失敗"); return; }
+    const all = (await tx(["idx"], "readonly", s => s.getAll())).filter(r => (r.album || "a0") === id);
+    await tx(["idx", "items"], "readwrite", (ix, it) => { for (const r of all) { ix.delete(r.id); it.delete(r.id); } });
+    const c = getCfg(); c.albums = c.albums.filter(a => a.id !== id); localStorage.setItem("cfg", JSON.stringify(c));
+  } catch (e) { toast("刪除失敗，請再試一次。"); return; }
   lockVault(); if (!getCfg()) location.reload();
 });
+$("reset").addEventListener("click", async () => {
+  if (!await ask("清除全部相簿並重設？", "所有相簿的密碼設定，以及已加密的照片和影片都會永久移除，無法復原。", "全部清除", true)) return;
+  if (db) db.close();
+  const go = () => { localStorage.removeItem("cfg"); location.reload(); };
+  const r = indexedDB.deleteDatabase("vault"); r.onsuccess = go; r.onerror = go; r.onblocked = go;
+});
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+if (!getCfg()) { $("calc").style.display = "none"; $("setup").style.display = "flex"; }
 </script>
 </body>
 </html>
